@@ -1,0 +1,381 @@
+
+∞Ö
+service£Ö
+serviceñÖ
+'type.googleapis.com/stack.ServiceExportÈÑ
+â
+Oracle-NoSQLOracle NoSQLservice*·version: 2
+services:
+  Oracle-NoSQL:
+    image: nirmay/oraclenosql
+    environment:
+      - 'RNHOST={{.ContainerHostname}}'
+      - ZONENAME=NoSQL-OCCS-Demo
+      - 'OCCS_BACKEND_KEY={{sd_deployment_containers_path "oraclenosql" 5000}}'
+      - 'occs:description=Oracle NoSQL Database'
+    command: '-c "export ADMIN=$RNHOST; /scripts/deploy-admin.sh"'
+
+Á
+Redis-ClusterRedis Clusterstack*ø# This Redis master/slave stack depends on the user tagging the master
+# host with 'master' and other non-master hosts with 'slave'
+#
+# TODO: put password 'mypass' somewhere else instead of this yaml
+#
+# TODO: use DNS instead of mapped env file
+#   dig @127.0.0.1 -p 8600 {{.ServiceID}}-{{.DeploymentID}}.service.stack. SRV|awk '/^;/{next}/ IN .* A /{print $NF}'
+#   # DNS via dig was not used because the container image did not have dnstools installed
+version: "2"
+services:
+  redis-master:
+    image: "redis:3.2.1-alpine"
+    ports:
+     - "6379:6379/tcp"
+    environment:
+     - "OCCS_PHASE_ID=0"
+     - "occs:scheduler=random"
+     - "occs:availability=per-tag"
+     - "occs:availability_context=master"
+     - "OCCS_HEALTHCHECK_REDIS=tcp://:6379/?timeout=10s&interval=30s"
+     - "CMD_INFO=redis-cli -p 6379 -a mypass info replication"
+     - "SETUP_MASTER=requirepass mypass"
+     - "occs:description=This is a clustered Redis master-slave stack. This stack depends on the user tagging the master host with 'master' and slaves as 'slave'. Because this service has a static host-bound port, only one deployment can be done per host without getting port conflicts. This example is provided as-is for educational purposes and should not be used in production."
+    command: sh -c "echo $SETUP_MASTER >/tmp/redis.conf; redis-server /tmp/redis.conf"
+
+  redis-slave:
+    image: "redis:3.2.1-alpine"
+    ports:
+     - "6379:6379/tcp"
+    environment:
+     - "OCCS_PHASE_ID=1"
+     - "occs:scheduler=random"
+     - "occs:availability=per-tag"
+     - "occs:availability_context=slave"
+     - "occs:description=Because this service has a static host-bound port, only one deployment can be done per host without getting port conflicts. This example is provided as-is for educational purposes and should not be used in production."
+     - "OCCS_HEALTHCHECK_REDIS=tcp://:6379/?timeout=10s&interval=30s"
+     - "CMD_INFO=redis-cli -p 6379 -a mypass info replication"
+     - 'SETUP_SLAVE=slaveof $(echo {{ proxy "redis-master:6379" }} | tr ":" " " )'
+     - "SETUP_PASS=masterauth mypass"
+     - "SETUP=(eval echo $SETUP_SLAVE; echo $SETUP_PASS)>/tmp/redis.conf"
+    command: sh -c "eval $SETUP; cat /tmp/redis.conf; redis-server /tmp/redis.conf"
+
+¢
+
+Wordpress-multihost-StackWordpress multihost Stackstack*‚	# https://hub.docker.com/_/wordpress/
+# Example docker-compose.yml for wordpress:
+# Run docker-compose up, wait for it to initialize completely,
+#   and visit http://localhost:8088 or http://host-ip:8088.
+version: "2"
+services:
+  wordpress:
+    image: "wordpress:4.5.2"
+    ports:
+      - "80/tcp"
+    environment:
+      - OCCS_PHASE_ID=1
+      - WORDPRESS_DB_HOST={{ proxy "db:3306" }}
+      - WORDPRESS_DB_PASSWORD=example
+      - MYSQL_ROOT_PASSWORD=example
+      - "OCCS_HEALTHCHECK_WORDPRESS_HTTP=http://:80/?timeout=10s&interval=30s"
+      - "occs:description=This is a simple wordpress stack that can be deployed to multiple hosts or multiple times on the same host. To find the deployed port, click into the container page for this service and located the Host Ports field. Then, on the Service Discovery page, use the host port to find the IP address of the host this service is deployed to. This example is provided as-is for educational purposes and should not be used in production."
+  db:  # ensure db sort position is before wordpress
+    image: "mariadb:10.1.14"
+    ports:
+      - 3306
+    environment:
+      - OCCS_PHASE_ID=0
+      - MYSQL_ROOT_PASSWORD=example
+      - "OCCS_HEALTHCHECK_MYSQL=tcp://:3306/?timeout=10s&interval=30s"
+
+â
+
+Wordpress-singlehost-StackWordpress singlehost Stackstack*«	# https://hub.docker.com/_/wordpress/
+# Example docker-compose.yml for wordpress:
+# Run docker-compose up, wait for it to initialize completely,
+#   and visit http://localhost:8080 or http://host-ip:8080.
+version: "2"
+services:
+  wordpress:
+    image: "wordpress:4.5.2"
+    environment:
+      - "OCCS_PHASE_ID=1"
+      - "OCCS_HEALTHCHECK_WORDPRESS_TCP=tcp://:8080/?timeout=10s&interval=30s"
+      - "OCCS_HEALTHCHECK_WORDPRESS_HTTP=http://:8080/?timeout=10s&interval=30s"
+      - "OCCS_HEALTHCHECK_WORDPRESS_POSTS=http://:8080/wp-json/posts/?timeout=10s&interval=30s"
+      - "occs:description=This is a simple wordpress stack that shows an example of docker links on a single host. Visit port 8080 on the host running this stack to view the running example. Because this service has a static host-bound port, only one deployment can be done per host without getting port conflicts. This example is provided as-is for educational purposes and should not be used in production."
+    links:
+      - "db:mysql"
+    ports:
+      - "8080:80"
+  db:
+    image: "mariadb:10.1.14"
+    environment:
+      - MYSQL_ROOT_PASSWORD=letmein
+      - "OCCS_PHASE_ID=0"
+      - "OCCS_HEALTHCHECK_MYSQL=tcp://:3306/?timeout=10s&interval=30s"
+
+ï
+alpine-linuxAlpine Linuxservice*Ìalpine-linux:
+  image: "alpine:3.4"
+  environment:
+    - "occs:description=Runs an example alpine linux container that executes for 10 minutes and prints out a hello world message to the terminal. This example is provided as-is for educational purposes and should not be used in production."
+  command: "/bin/sh -c \"i=0; trap 'echo Exiting application; exit' SIGHUP SIGINT SIGTERM; while [ $i -lt 600 ]; do echo Hello world from the alpine docker container!; i=`expr $i + 1`; sleep 1; done\""
+‚
+apacheApacheservice*∆apache-php:
+  image: "k0st/alpine-apache-php:latest"
+  ports:
+    - "9001:80/tcp"
+  environment:
+    - "occs:description=A Docker image with Apache and PHP. After the container deploys successfully, visit port 9001 on the host to see the phpinfo page. This example is provided as-is for educational purposes and should not be used in production."
+  entrypoint: /bin/sh
+  command: "-c 'echo \"<?php phpinfo() ?>\" > /app/index.php && httpd -D FOREGROUND'"
+Ò
+busyboxBusyBoxservice*”busybox:
+  environment:
+    - "occs:description=Runs a BusyBox image that executes for 10 minutes and prints out a hello world to the terminal. This example is provided as-is for educational purposes and should not be used in production."
+  image: "busybox:latest"
+  command: "/bin/sh -c \"i=0; trap 'echo Exiting application; exit' SIGHUP SIGINT SIGTERM; while [ $i -lt 600 ]; do echo Hello world from the busybox docker container!; i=`expr $i + 1`; sleep 1; done\""
+Å
+cadvisorcAdvisorservice*·cadvisor:
+  image: "google/cadvisor:v0.23.2"
+  volumes:
+    - "/:/rootfs:ro"
+    - "/var/run:/var/run:rw"
+    - "/sys:/sys:ro"
+    - "/var/lib/docker/:/var/lib/docker:ro"
+  ports:
+    - "8080:8080/tcp"
+  environment:
+    - "occs:availability=per-host"
+    - "occs:description=A cAdvisor container that runs on port 8080 on the host. By default, this image will be deployed to all hosts. This example is provided as-is for educational purposes and should not be used in production."
+¸
+	cassandra	Cassandraservice*⁄cassandra:
+  image: "cassandra:3.7"
+  environment:
+    - "occs:description=The officially supported Apache Cassandra image. This example is provided as-is for educational purposes and should not be used in production."
+¿
+datadogDatadogservice*¢datadog:
+  image: "datadog/docker-dd-agent:11.2.585-alpine"
+  hostname: "{{.Hostname}}"
+  volumes:
+    - "/var/run/docker.sock:/var/run/docker.sock"
+    - "/proc/:/host/proc/:ro"
+    - "/sys/fs/cgroup/:/host/sys/fs/cgroup:ro"
+  environment:
+    - "API_KEY={your_api_key_here}"
+    - "occs:availability=per-host"
+    - "occs:description=The officially supported Datadog image. You will need to add your API key to publish data to your datadog account. This example is provided as-is for educational purposes and should not be used in production."
+
+Ô
+golangGo Example Applicationservice*√goapp:
+  image: "golang:1.6.3-alpine"
+  environment:
+    - "GO_SRC=package main\\nimport (\\n  \"fmt\"\\n  \"time\"\\n)\\nfunc main() {\\n  for i := 0; i < 600; i++ {\\n    fmt.Printf(\"Hello world from Go. The time is %v\\\\n\", time.Now())\\n    time.Sleep(1 * time.Second)\\n  }\\n}"
+    - "occs:description=An example golang container that runs for 10 minutes and prints out a hello world to the terminal. This example is provided as-is for educational purposes and should not be used in production."
+  command: "sh -c \"echo -e \\\"$GO_SRC\\\" > main.go && go run main.go\""
+Ø
+haproxyHAProxyservice*ëhaproxy:
+  image: "haproxy:1.6-alpine"
+  environment:
+    - "HAPROXY_CFG=global\\n  maxconn 10\\n  pidfile /var/run/haproxy.pid\\n  stats socket /tmp/haproxy\\n\\ndefaults\\n  mode http\\n  timeout connect 10s\\n  timeout client 30s\\n  timeout server 30s\\n\\nlisten  stats\\n  bind :1936\\n  mode http\\n  stats enable\\n  stats hide-version\\n  stats refresh 30s\\n  stats show-node\\n  stats uri  /haproxy?stats"
+    - "SETUP=(eval echo $HAPROXY_CFG;)>/tmp/haproxy.cfg"
+    - "occs:description=An example HAProxy service. This serves as a building block to a larger deployments as shown in the stacks tab for the loadbalancers. Access the stats page at http://YOUR_HOST:1936/haproxy?stats. This example is provided as-is for educational purposes and should not be used in production."
+  ports:
+    - "1936:1936/tcp"
+  command: "sh -c \"echo -e \\$HAPROXY_CFG > /tmp/haproxy.cfg; haproxy -f /tmp/haproxy.cfg\""
+“
+
+helloworldHello World Applicationservice*°helloworld:
+  image: "karthequian/helloworld:latest"
+  ports:
+    - "9000:80/tcp"
+  environment:
+    - "occs:description=A simple hello world web application that runs on port 9000 on the host. This example is provided as-is for educational purposes and should not be used in production."
+
+´
+jenkinsJenkinsservice*çjenkins:
+  image: "jenkins:2.7.1-alpine"
+  ports:
+    - "9002:8080/tcp"
+  environment:
+    - "occs:description=The official Jenkins image that runs on port 9002 of the host. This example is provided as-is for educational purposes and should not be used in production."
+
+≤
+logstashLogstashservice*ílogstash:
+  image: "logstash:latest"
+  environment:
+    - "occs:description=The official logstash image. This example is provided as-is for educational purposes and should not be used in production."
+  command: "logstash -e 'input { tcp { port => 5000 type => syslog } udp { port => 5000 type => syslog} } output { stdout { codec => rubydebug } }'"
+  ports:
+    - "5000:5000/tcp"
+    - "5000:5000/udp"
+
+”
+mariadbMariaDBservice*µmariadb:
+  image: "mariadb:10.1.16"
+  environment:
+    - MYSQL_ROOT_PASSWORD=my-secret-pw
+    - "occs:description=The official MariaDB image. Please update the password before you use this in production use cases. This example is provided as-is for educational purposes and should not be used in production."
+
+‡
+mongodbMongoDBservice*¬mongodb:
+  image: "mongo:3.2.8"
+  environment:
+    - "occs:description=The official MongoDB image. This example is provided as-is for educational purposes and should not be used in production."
+
+»
+mysqlMySQLservice*Æmysql:
+  image: "mysql:5.7.13"
+  environment:
+    - MYSQL_ROOT_PASSWORD=my-secret-pw
+    - "occs:description=The official MySQL image. Please update the password before you use this in production use cases. This example is provided as-is for educational purposes and should not be used in production."
+
+Ç
+newrelicNewRelicservice*‚newrelic:
+  image: "newrelic/nrsysmond:2.3.0.132"
+  hostname: "{{.Hostname}}"
+  privileged: true
+  pid: host
+  net: host
+  volumes:
+    - "/sys:/sys"
+    - "/dev:/dev"
+    - "/var/run/docker.sock:/var/run/docker.sock"
+    - "/var/log:/var/log:rw"
+  environment:
+    - NRSYSMOND_license_key=YOUR_NEWRELIC_API_KEY
+    - NRSYSMOND_logfile=/var/log/nrsysmond.log
+    - "occs:availability=per-host"
+    - "occs:description=The official NewRelic image. Please replace `NRSYSMOND_license_key` with your New Relic API key. This example is provided as-is for educational purposes and should not be used in production."
+
+´
+nginxNGINXservice*ënginx:
+  image: "nginx:1.10.1-alpine"
+  environment:
+    - "NGINX_CONF=server {\\n  listen 80;\\n  server_name localhost;\\n  location / {\\n    add_header Content-Type text/plain;\\n    return 200 'Hello from your Docker container';\\n  }\\n}"
+    - "occs:description=This is the official NGINX image. This example is provided as-is for educational purposes and should not be used in production."
+  ports:
+    - "8000:80/tcp"
+  command: "sh -c \"echo -e \\$NGINX_CONF > /etc/nginx/conf.d/default.conf; nginx -g 'daemon off;'\""
+
+Ø
+oracle-linuxOracle Linuxservice*áoracle-linux:
+  image: "oracle/oraclelinux:7.0"
+  command:  "/bin/sh -c \"i=0; trap 'echo Exiting application; exit' INT EXIT; while [ $i -lt 600 ]; do echo Hello world from the Oracle Linux docker container!; i=`expr $i + 1`; sleep 1; done\""  environment:
+    - "occs:description=The official Oracle Linux image. After the container deploys successfully, it runs for 10 minutes and prints out hello world to the terminal. This example is provided as-is for educational purposes and should not be used in production."
+
+‹
+phpPHPservice*∆apache-php:
+  image: "k0st/alpine-apache-php:latest"
+  ports:
+    - "9001:80/tcp"
+  environment:
+    - "occs:description=A Docker image with Apache and PHP. After the container deploys successfully, visit port 9001 on the host to see the phpinfo page. This example is provided as-is for educational purposes and should not be used in production."
+  entrypoint: /bin/sh
+  command: "-c 'echo \"<?php phpinfo() ?>\" > /app/index.php && httpd -D FOREGROUND'"
+‰
+
+postgresql
+PostgreSQLservice*¿postgresql:
+  image: "postgres:9.5.3"
+  environment:
+    - POSTGRES_PASSWORD=my-secret-pw
+    - "occs:description=This is the official PostgreSQL image. Please update the password before you use this in production use cases. This example is provided as-is for educational purposes and should not be used in production."
+
+˜
+pythonPythonservice*€python:
+  image: "python:3.5.0"
+  environment:
+    - "PYTHON_SCRIPT=import time\\nprint(\"Hello from python! Taking a 10 minute power nap now.\")\\nfor x in range(0, 600):\\n    print (\"I've been asleep for %d seconds now...\" % (x))\\n    time.sleep(1)\\nprint (\"Woke up! Exiting application now.\")"
+    - "occs:description=An example Python image that runs for 10 minutes and prints out a message to the terminal. This example is provided as-is for educational purposes and should not be used in production."
+  command: "bash -c \"echo -e \\$PYTHON_SCRIPT > /tmp/main.py; python -u /tmp/main.py\""
+
+ﬂ
+redisRedisservice*≈redis:
+  image: "redis:3.2.1-alpine"
+  environment:
+    - "occs:description=The official Redis image. This example is provided as-is for educational purposes and should not be used in production."
+
+–
+rubyRubyservice*∏ruby:
+  image: "ruby:2.3.1-alpine"
+  environment:
+    - "occs:description=An example ruby image that runs for 10 minutes and prints out hello world to the terminal. This example is provided as-is for educational purposes and should not be used in production."
+  command: "ruby -e 'require \"logger\";$stdout.sync = true;logger=Logger.new($stdout);600.times {|i| logger.info \"Hello world #{Time.now.strftime(\"%I:%M:%S%P\")}\"; sleep 1 }'"
+
+ù
+	sumologic	SumoLogicservice*˚sumologic:
+  image: "sumologic/collector:latest"
+  environment:
+    - SUMO_ACCESS_ID=YOUR_ACCESS_ID
+    - SUMO_ACCESS_KEY=YOUR_ACCESS_KEY
+    - SUMO_COLLECTOR_NAME=docker-logs
+    - "occs:availability=per-host"
+    - "occs:description=SumoLogic log aggregation image. Please update the Access ID before you run this image. This example is provided as-is for educational purposes and should not be used in production."
+  volumes:
+    - "/var/run/docker.sock:/var/run/docker.sock"
+  hostname: "{{.Hostname}}"
+
+¡
+tomcatTomcatservice*•tomcat:
+  image: "tomcat:8.5.4-jre8-alpine"
+  ports:
+    - "8888:8080/tcp"
+  environment:
+    - "occs:description=The official Tomcat image. Access the Tomcat welcome page at http://YOUR_HOST:8888. This example is provided as-is for educational purposes and should not be used in production."
+
+Í
+ubuntuUbuntu 14.04service*»ubuntu:
+  image: "ubuntu:14.04"
+  command:  "/bin/sh -c \"i=0; trap 'echo Exiting application; exit' INT EXIT; while [ $i -lt 600 ]; do echo Hello world from the Ubuntu docker container!; i=`expr $i + 1`; sleep 1; done\""  environment:
+    - "occs:description=The official Ubuntu 14.04 image that runs for 10 minutes and prints out hello world to the terminal. This example is provided as-is for educational purposes and should not be used in production."
+
+9
+tags1
+tags)
+#type.googleapis.com/stack.TagExport
+ 
+©
+
+deploymentö
+
+deploymentã
+*type.googleapis.com/stack.DeploymentExport‹
+Ÿ
+÷
+ô
+Oracle-NoSQL-20170707-145305	
+default"admin*2017-07-07T09:23:05Z2Œ
+Oracle-NoSQLOracle NoSQLservice*¶version: 2
+services:
+  Oracle-NoSQL:
+    image: nirmay/oraclenosql
+    environment:
+      - 'RNHOST={{.ContainerHostname}}'
+      - ZONENAME=NoSQL-OCCS-Demo
+      - 'OCCS_BACKEND_KEY={{sd_deployment_containers_path "oraclenosql" 5000}}'
+      - 'occs:availability=per-pool'
+      - 'occs:scheduler=random'
+      - 'occs:description=Oracle NoSQL Database'
+    command: '-c "export ADMIN=$RNHOST; /scripts/deploy-admin.sh"'
+82
+Oracle NoSQL
+Oracle-NoSQL"˘•˝ “í§ã(
+˜
+poolÓ
+pools‰
+$type.googleapis.com/stack.PoolExportª
+∏
+
+defaultdefault
+N
+developmentDevelopment2Development pool will contain dev hosts and assets
+R
+
+production
+Production8Production pool will contain production hosts and assets
+Ö
+registryy
+registrym
+(type.googleapis.com/types.RegistryExportA
+?
+b18c1ff06e1cfa53index.docker.io:Public Docker Hub Registry

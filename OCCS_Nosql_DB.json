@@ -1,0 +1,17 @@
+{
+    "recipeName": "OCCS_Nosql_DB",
+    "cleanServices": "All",
+    "setupServices": {
+    "container":	 [{
+             "recipe": "default",
+	     "serviceName": "myNosql",
+             "serviceDescription": "GSE provisioned Container Cloud Service with Nosql DB",
+             		"components": {
+            			"MANAGER": {
+            			"adminUserPassword": "Welcome321"
+                			   }
+	                              } ,"customScripts": "/storage1/utils/python/2.7.9/python ${recipePath}/master_occs_refresh.py ${domain} ${recipePath} ${sProxy}"
+	         	 }]
+	              }
+}
+
