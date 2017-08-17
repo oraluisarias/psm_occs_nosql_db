@@ -18,7 +18,7 @@ class DemoCentral:
 		pass_data = {
 			"password" : new_pass
 		}
-		return requests.put(endpoint, data=json.dumps(pass_data), headers=headers )
+		return self.requestPUTWithProxy(endpoint, data=json.dumps(pass_data), headers=headers )
 		
 	def getDCEnvironment(self, environment):
 		# print ("Getting environment username/password from Demo Central...")
@@ -27,7 +27,7 @@ class DemoCentral:
 			'Authorization': 'Bearer YTg3ZWJmNDctNzFhYS00ZDM4LWE5YWQtN2FlNTNlZjNlNTNm',
 			'X-Oracle-Environment-Name': environment
 		}
-		return json.loads( requests.get(endpoint, headers=headers).text )	
+		return json.loads( self.requestGETWithProxy(endpoint, headers=headers).text )	
 
 class Compute:	
 	def __init__(self, identity_domain, api="z26", zone="us2", username="cloud.admin", password=False, findDomainData=True):
@@ -62,7 +62,7 @@ class Compute:
 	def findDomainData(self):
 		RTpayload = { "identity_domain":self.identity_domain, "password":self.password }
 		# print("Querying domain data using RT using data...", RTpayload)
-		r = requests.post("http://gse-admin.oraclecloud.com:7002/getOPCZone", data=RTpayload )
+		r = self.requestPOSTWithProxy("http://gse-admin.oraclecloud.com:7002/getOPCZone", data=RTpayload )
 		self.domain_data = json.loads( r.text )["identity_domain"]
 
 	def findDataCenter(self):
@@ -72,7 +72,7 @@ class Compute:
 		}
 		for dc in datacenters:
 			endpoint = "https://" + dc + ".storage.oraclecloud.com/v1/Storage-"+self.identity_domain+"/test"
-			response =  requests.put(endpoint, headers = DC_header_token).text
+			response =  self.requestPUTWithProxy(endpoint, headers = DC_header_token).text
 			if response != "<html><body>Sorry, but the content requested does not seem to be available. Try again later. If you still see this message, then contact Oracle Support.</body></html>":
 				return dc
 		return False
@@ -209,7 +209,7 @@ class Compute:
 			headers = {'Content-Type': 'application/oracle-compute-v3+json'}		
 			url = "https://api-"+api+".compute."+zone+".oraclecloud.com/authenticate/"
 			# print("url", url)
-			r = requests.post(url, data=json.dumps(credentials), headers=headers)	
+			r = self.requestPOSTWithProxy(url, data=json.dumps(credentials), headers=headers)	
 			cookies = "nimbula=" + r.cookies["nimbula"] + "; Path=/; Max-Age=1800"	
 			# print (r.text)
 			self.cookie = cookies
@@ -230,7 +230,7 @@ class Compute:
 			with open(key, 'r') as f: 
 				data["key"]=f.read()
 		else: data["key"] = key
-		r = requests.post(endpoint, data=json.dumps(data), headers=headers)	
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(data), headers=headers)	
 		print ("key: " + data["key"])
 		print ("endpoint: " + endpoint)	
 		print (r.text)
@@ -242,7 +242,7 @@ class Compute:
 		if type(seclist) == str and os.path.isfile(seclist): 
 			with open(key, 'r') as f: 
 				seclist=f.read()		
-		r = requests.post(endpoint, data=json.dumps(seclist), headers=headers)
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(seclist), headers=headers)
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -250,7 +250,7 @@ class Compute:
 	# def deleteOrchestration(self, user, orchestration_name):	
 	# 	headers = {"Cookie" : self.cookie, "Content-Type" : "application/oracle-compute-v3+json", "Accept" : "application/oracle-compute-v3+json"}	
 	# 	endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/orchestration/" + orchestration_name
-	# 	r = requests.delete(endpoint, headers=headers)
+	# 	r = self.requestDELETEWithProxy(endpoint, headers=headers)
 	# 	print ("Deleting orchestration...", r.text)
 	# 	return json.loads(r.text) 
 
@@ -264,7 +264,7 @@ class Compute:
 				orchestration=json.loads(jsonfile)		
 		else: print ("Uploading plain orchestration")
 
-		r = requests.post(endpoint, data=json.dumps(orchestration), headers=headers)
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(orchestration), headers=headers)
 		print ("orchestration: ")
 		print (orchestration)	
 		print ("endpoint: " + endpoint)	
@@ -275,7 +275,7 @@ class Compute:
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/storage/attachment/"
 		data={"index": index,"storage_volume_name": storage_volume_name,"instance_name": source_instance}
-		r = requests.post(endpoint, data=json.dumps(data), headers=headers)	
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(data), headers=headers)	
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -289,7 +289,7 @@ class Compute:
 				for k, v in replace: jsonfile = jsonfile.replace(k, v)
 				orchestration=json.loads(jsonfile)	
 		print ("uploading orchestration: " + json.dumps(orchestration))	
-		r = requests.post(endpoint, data=json.dumps(orchestration), headers=headers)	
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(orchestration), headers=headers)	
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -297,7 +297,7 @@ class Compute:
 	def orchestrationAction(self,  user, orchestration_name, action):		
 		headers = {"Cookie" : self.cookie, "Content-Type" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/orchestration/Compute-" + self.identity_domain + "/" + user + "/" + orchestration_name + "?action=" + action
-		r = requests.put(endpoint, headers=headers)
+		r = self.requestPUTWithProxy(endpoint, headers=headers)
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -305,7 +305,7 @@ class Compute:
 	def deleteOrchestration(self,  user, orchestration_name):	
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/orchestration/Compute-" + self.identity_domain + "/" + user + "/" + orchestration_name + "/"
-		r = requests.delete(endpoint, headers=headers)
+		r = self.requestDELETEWithProxy(endpoint, headers=headers)
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -313,7 +313,7 @@ class Compute:
 	def getOrchestrations(self,  user):		
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/orchestration/Compute-" + self.identity_domain + "/" + user + "/"	
-		r = requests.get(endpoint, headers=headers)
+		r = self.requestGETWithProxy(endpoint, headers=headers)
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -330,7 +330,7 @@ class Compute:
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/rebootinstancerequest/"
 		data = { "hard": "true", "instance": instance }
-		r = requests.post(endpoint, data=json.dumps(data), headers=headers)
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(data), headers=headers)
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -338,7 +338,7 @@ class Compute:
 	def deleteInstance(self,  instance):
 		headers = {"Cookie" : self.cookie}
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/instance" + instance
-		r = requests.delete(endpoint, headers=headers)
+		r = self.requestDELETEWithProxy(endpoint, headers=headers)
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -346,7 +346,7 @@ class Compute:
 	def getShapes(self):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/shape/"	
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)			
 		return json.loads(r.text)
 
@@ -369,21 +369,21 @@ class Compute:
 	def getAllReservedIP(self,  user):  
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/ip/reservation/Compute-" + self.identity_domain + "/" + user + "/"	
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)			
 		return json.loads(r.text)
 
 	def getAllAssociatedIP(self,  user):  
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/ip/association/Compute-" + self.identity_domain + "/" + user + "/"			
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)			
 		return json.loads(r.text)
 
 	def getReservedIP(self,  user, vcable_id):  
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/ip/association/Compute-" + self.identity_domain + "/" + user + "/"					
-		r = requests.get(endpoint, headers=headers)			
+		r = self.requestGETWithProxy(endpoint, headers=headers)			
 		result=json.loads(r.text)
 		for ips in result["result"]:
 			if ips["vcable"] == vcable_id:
@@ -392,51 +392,52 @@ class Compute:
 	def getAssociatedIP(self,  user, instance_name):  
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/ip/association" + instance_name + "/"		
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)			
 		return json.loads(r.text)
 
 	def getInstances(self,  user):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json"}	
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/instance/Compute-" + self.identity_domain + "/" + user + "/"	
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		# print ("endpoint: " + endpoint)			
 		return json.loads(r.text)
 
 	def getAttachmentDetails(self, user):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/storage/attachment/Compute-" + self.identity_domain + "/" + user + "/"
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)	
 		return json.loads(r.text)
 
 	def getVolumes(self, user):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/storage/volume/Compute-" + self.identity_domain + "/" + user + "/"
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)	
 		return json.loads(r.text)
 
 	def deleteVolume(self, user, volume):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/storage/volume/Compute-" + self.identity_domain + "/" + user + "/" + volume
-		r = requests.delete(endpoint, headers=headers)	
+		r = self.requestDELETEWithProxy(endpoint, headers=headers)	
 		return json.loads(r.text)
 
 	def createSimpleVolume(self,  size, name):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/storage/volume/"
 		volume_data = {"size" : size, "name" : name, "properties" : ["/oracle/public/storage/default"]}
-		r = requests.post(endpoint, data=json.dumps(volume_data), headers=headers)	
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(volume_data), headers=headers)	
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
 
 	def createBootableVolume(self,  size, name):
+		execute("sh getProxy.sh " + endpoint)
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/storage/volume/"
 		volume_data = {"size" : size, "name" : name, "properties" : ["/oracle/public/storage/default"]}
-		r = requests.post(endpoint, data=json.dumps(volume_data), headers=headers)	
+		r = self.requestPOSTWithProxy(endpoint, data=json.dumps(volume_data), headers=headers)	
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -444,7 +445,7 @@ class Compute:
 	def getImageLists(self,  user):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+directory+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/imagelist/Compute-" + self.identity_domain + "/" + user + "/"
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -452,7 +453,7 @@ class Compute:
 	def getSSHKey(self, user):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+directory+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/sshkey/Compute-" + self.identity_domain + "/" + user + "/"
-		r = requests.get(endpoint, headers=headers)	
+		r = self.requestGETWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)
@@ -460,7 +461,7 @@ class Compute:
 	def deleteSSHKey(self,  user, key):
 		headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+directory+json"}		
 		endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/sshkey/Compute-" + self.identity_domain + "/" + user + "/" + key
-		r = requests.delete(endpoint, headers=headers)	
+		r = self.requestDELETEWithProxy(endpoint, headers=headers)	
 		print ("endpoint: " + endpoint)	
 		print (r.text)
 		return json.loads(r.text)	
@@ -472,7 +473,7 @@ class Compute:
 			'Authorization': 'Bearer YTg3ZWJmNDctNzFhYS00ZDM4LWE5YWQtN2FlNTNlZjNlNTNm',
 			'X-Oracle-Environment-Name': environment
 		}
-		return json.loads( requests.get(endpoint, headers=headers).text )	
+		return json.loads( self.requestGETWithProxy(endpoint, headers=headers).text )	
 
 	def getCredentialsDemoCentral(self):
 		# curlUser = curl -X GET -H X-Oracle-Authorization:Z3NlLWRldm9wc193d0BvcmFjbGUuY29tOjVjWmJzWkxuMQ== 
@@ -481,12 +482,70 @@ class Compute:
 		#https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_opc_password
 		# print ("Getting cloud username/password from Demo Central...")
 		headers = {'X-Oracle-Authorization': 'Z3NlLWRldm9wc193d0BvcmFjbGUuY29tOjVjWmJzWkxuMQ=='}
-		opc_email = json.loads(requests.get("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_opc_email", headers=headers).text)
-		opc_password = json.loads(requests.get("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_opc_password", headers=headers).text)	
-		sso_email = json.loads(requests.get("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_sso_email", headers=headers).text)
-		sso_password = json.loads(requests.get("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_sso_password", headers=headers).text)	
+		opc_email = json.loads(self.requestGETWithProxy("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_opc_email", headers=headers).text)
+		opc_password = json.loads(self.requestGETWithProxy("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_opc_password", headers=headers).text)	
+		sso_email = json.loads(self.requestGETWithProxy("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_sso_email", headers=headers).text)
+		sso_password = json.loads(self.requestGETWithProxy("https://adsweb.oracleads.com/apex/adsweb/parameters/democloud_admin_sso_password", headers=headers).text)	
 		# print ("%s, %s, %s, %s" % (opc_email["items"][0]["value"], opc_password["items"][0]["value"], 
 		# 			sso_email["items"][0]["value"], sso_password["items"][0]["value"]))
 		return {"user" : "/Compute-" + self.identity_domain + "/" + opc_email["items"][0]["value"], "password" : opc_password["items"][0]["value"]}
 
-	
+	def requestDELETEWithProxy(endpoint, **kwargs):
+		kwargs["timeout"]=5	
+		with open('/cloud/utils/bin/CloudBots/app/proxy.dat') as f:
+			proxies = f.readlines()
+			for proxy in proxies:
+				print("setting proxy: ", proxy)
+				os.environ['http_proxy'] = "http://" + proxy.strip()
+				os.environ['https_proxy'] = "https://" + proxy.strip()
+				try:
+					call = requestDELETEWithProxy(endpoint, **kwargs)
+				except Exception:
+					print(proxy, "didn't work")
+				else:
+					return call
+
+	def requestPOSTWithProxy(endpoint, **kwargs):
+		kwargs["timeout"]=5	
+		with open('/cloud/utils/bin/CloudBots/app/proxy.dat') as f:
+			proxies = f.readlines()
+			for proxy in proxies:
+				print("setting proxy: ", proxy)
+				os.environ['http_proxy'] = "http://" + proxy.strip()
+				os.environ['https_proxy'] = "https://" + proxy.strip()
+				try:
+					call = requests.post(endpoint, **kwargs)
+				except Exception:
+					print(proxy, "didn't work")
+				else:
+					return call
+
+	def requestGETWithProxy(endpoint, **kwargs):
+		kwargs["timeout"]=5	
+		with open('/cloud/utils/bin/CloudBots/app/proxy.dat') as f:
+			proxies = f.readlines()
+			for proxy in proxies:
+				print("setting proxy: ", proxy)
+				os.environ['http_proxy'] = "http://" + proxy.strip()
+				os.environ['https_proxy'] = "https://" + proxy.strip()
+				try:
+					call = requests.get(endpoint, **kwargs)
+				except Exception:
+					print(proxy, "didn't work")
+				else:
+					return call
+
+	def requestPUTWithProxy(endpoint, **kwargs):
+		kwargs["timeout"]=5	
+		with open('/cloud/utils/bin/CloudBots/app/proxy.dat') as f:
+			proxies = f.readlines()
+			for proxy in proxies:
+				print("setting proxy: ", proxy)
+				os.environ['http_proxy'] = "http://" + proxy.strip()
+				os.environ['https_proxy'] = "https://" + proxy.strip()
+				try:
+					call = requests.put(endpoint, **kwargs)
+				except Exception:
+					print(proxy, "didn't work")
+				else:
+					return call
