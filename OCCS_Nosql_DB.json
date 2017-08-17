@@ -10,7 +10,7 @@
             			"MANAGER": {
             			"adminUserPassword": "Welcome321"
                 			   }
-	                              } ,"customScripts": "/storage1/utils/python/2.7.9/python ${recipePath}/master_occs_refresh.py ${domain} ${recipePath} ${sProxy}"
+	                              } ,"customScripts": "/storage1/utils/python/2.7.9/python ${recipePath}/master_occs_refresh.py ${domain} ${recipePath}"
 	         	 }]
 	              }
 }

@@ -1,6 +1,4 @@
 import opc, subprocess, sys, os, occs
-os.environ['http_proxy'] = sys.argv[3]
-os.environ['https_proxy'] = sys.argv[3]
 identity_domain = sys.argv[1]
 recipe_path = sys.argv[2]
 upload_file_name = recipe_path + '/nosqldemo-occs-mgr-1_20170713012937.bin'
