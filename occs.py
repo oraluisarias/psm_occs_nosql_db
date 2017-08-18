@@ -7,7 +7,7 @@
 #------------------------------------------------------------------------------------------------#
 # Oct-2016                           LUISARIA.MX                  Initial Version                #
 #------------------------------------------------------------------------------------------------#
-import requests, json, os, time, sys, traceback, subprocess, re
+import requests, json, os, time, sys, traceback, subprocess, re, GSEPROXY
 import xml.etree.ElementTree
  
 class OCCS:        
@@ -20,6 +20,8 @@ class OCCS:
         self.login_info = self.login()
         self.auth_bearer = self.login_info["token"]        
         self.token = self.retrieveToken()["token"]
+        self.GSEPROXY = GSEPROXY.GSEPROXY("/cloud/utils/bin/CloudBots/app/proxy.dat")
+
  
     def getToken(self):
         return self.token
@@ -32,7 +34,7 @@ class OCCS:
         endpoint = self.url + "/api/token"
         data = { "username" : self.user, "password" : self.password }
         print("Trying to log in with username/password", self.user, self.password, endpoint)
-        r = self.requestPOSTWithProxy(endpoint, headers=headers, verify=False)    
+        r = self.GSEPROXY.requestPOSTWithProxy(endpoint, headers=headers, verify=False)    
         response = r.text.encode('utf-8').strip()
         print (json.loads(response))
         return json.loads(response)
@@ -43,7 +45,7 @@ class OCCS:
         data = { "username" : self.user, "password" : self.password }
         print("Trying to log in with username/password", self.user, self.password, endpoint)
         try: 
-            r = self.requestPOSTWithProxy(endpoint, data=json.dumps(data), verify=False)                    
+            r = self.GSEPROXY.requestPOSTWithProxy(endpoint, data=json.dumps(data), verify=False)                    
             # self.password =  self.getDCEnvironment("metcs-" + identity_domain)["items"][0]["password"]                
         except: 
             print("Tried to connect to ", endpoint)
@@ -63,7 +65,7 @@ class OCCS:
                "last_name": "Admin",
             'password': newPassword
         }    
-        r = self.requestPUTWithProxy(endpoint, data=json.dumps(data), headers=headers, verify=False)        
+        r = self.GSEPROXY.requestPUTWithProxy(endpoint, data=json.dumps(data), headers=headers, verify=False)        
         print (r.text)            
         data["response"] = json.loads(re.sub('[\s+]', '', r.text))
         return data
@@ -74,7 +76,7 @@ class OCCS:
         endpoint = self.url + "/api/v2/import"
         snapshot = { 'upload.bin': ( 'upload.bin', open( snapshotName, 'rb' ) ) }       
         print ( "Uploading snapshot", snapshot) 
-        r = self.requestPOSTWithProxy(endpoint, files=snapshot, headers=headers, verify=False)                    
+        r = self.GSEPROXY.requestPOSTWithProxy(endpoint, files=snapshot, headers=headers, verify=False)                    
         print ( r.text )    
         return json.loads(re.sub('[\s+]', '', r.text))
  
@@ -82,7 +84,7 @@ class OCCS:
         headers = {"Authorization" : "Bearer " + self.token}        
         endpoint = self.url + "/api/v2/containers/" + containerId + "/stop"
         data = { }
-        r = self.requestPOSTWithProxy(endpoint, data=json.dumps(data), headers=headers, verify=False)            
+        r = self.GSEPROXY.requestPOSTWithProxy(endpoint, data=json.dumps(data), headers=headers, verify=False)            
         # return json.loads(r.text.strip())
         return json.loads(re.sub('[\s+]', '', r.text))
  
@@ -90,7 +92,7 @@ class OCCS:
         headers = {"Authorization" : "Bearer " + self.token}        
         endpoint = self.url + "/api/containers"
         print (headers)
-        r = self.requestGETWithProxy(endpoint, headers=headers, verify=False)
+        r = self.GSEPROXY.requestGETWithProxy(endpoint, headers=headers, verify=False)
         response_text = r.text
         response_obj = json.loads( response_text )
         print ( response )
@@ -100,7 +102,7 @@ class OCCS:
         headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+json", "Content-Type" : "application/oracle-compute-v3+json"}        
         endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/storage/volume/"
         volume_data = {"size" : size, "name" : name, "properties" : ["/oracle/public/storage/default"]}
-        r = self.requestPOSTWithProxy(endpoint, data=json.dumps(volume_data), headers=headers, verify=False)    
+        r = self.GSEPROXY.requestPOSTWithProxy(endpoint, data=json.dumps(volume_data), headers=headers, verify=False)    
         print ("endpoint: " , endpoint    )
         print( r.text)
         return json.loads(r.text)
@@ -108,14 +110,14 @@ class OCCS:
     def getContainers(self,  user):
         headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+directory+json"}        
         endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/imagelist/Compute-" + self.identity_domain + "/" + user + "/"
-        r = self.requestGETWithProxy(endpoint, headers=headers, verify=False)    
+        r = self.GSEPROXY.requestGETWithProxy(endpoint, headers=headers, verify=False)    
         print ("endpoint: " , endpoint)    
         print (r.text)
         return json.loads(r.text)
  
     def getRandomPwdDemoCentral(self):
         demo_central_pwd_url = "https://adsweb-ws.oracleads.com/dumservice/common/password?policy=USER_FRIENDLY_PASSWORD_POLICY"
-        content = self.requestGETWithProxy(demo_central_pwd_url).text
+        content = self.GSEPROXY.requestGETWithProxy(demo_central_pwd_url).text
         print (content)
         root = xml.etree.ElementTree.fromstring(content)
  
@@ -126,7 +128,7 @@ class OCCS:
     def getImageLists(self,  user):
         headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+directory+json"}        
         endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/imagelist/Compute-" + self.identity_domain + "/" + user + "/"
-        r = self.requestGETWithProxy(endpoint, headers=headers, verify=False)    
+        r = self.GSEPROXY.requestGETWithProxy(endpoint, headers=headers, verify=False)    
         print ("endpoint: " , endpoint)    
         print (r.text)
         return json.loads(r.text)
@@ -134,7 +136,7 @@ class OCCS:
     def getIpAssocs(self,  user):
         headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+directory+json"}        
         endpoint = "https://psm.europe.oraclecloud.com/ip/association/"
-        r = self.requestGETWithProxy(endpoint, headers=headers, verify=False)    
+        r = self.GSEPROXY.requestGETWithProxy(endpoint, headers=headers, verify=False)    
         print ("endpoint: " , endpoint)    
         print (r.text)
         return json.loads(r.text)
@@ -143,53 +145,9 @@ class OCCS:
         headers = {"Cookie" : self.cookie, "Accept" : "application/oracle-compute-v3+directory+json"}        
         # endpoint = "https://api-"+self.api+".compute."+self.zone+".oraclecloud.com/ip/reservation/"
         endpoint = "https://psm.europe.oraclecloud.com/ip/reservation/"
-        r = self.requestGETWithProxy(endpoint, headers=headers, verify=False)    
+        r = self.GSEPROXY.requestGETWithProxy(endpoint, headers=headers, verify=False)    
         print ("endpoint: " , endpoint    )
         print (r.text)
         return json.loads(r.text)
  
-    def requestPOSTWithProxy(self, endpoint, **kwargs):
-        kwargs["timeout"]=5    
-        with open('/cloud/utils/bin/CloudBots/app/proxy.dat') as f:
-            proxies = f.readlines()
-            for proxy in proxies:
-                print("setting proxy: ", proxy)
-                os.environ['http_proxy'] = "http://" + proxy.strip()
-                os.environ['https_proxy'] = "https://" + proxy.strip()
-                try:
-                    call = requests.post(endpoint, **kwargs)
-                except Exception:
-                    print(proxy, "didn't work")
-                else:
-                    return call
- 
-    def requestGETWithProxy(self, endpoint, **kwargs):
-        kwargs["timeout"]=5    
-        with open('/cloud/utils/bin/CloudBots/app/proxy.dat') as f:
-            proxies = f.readlines()
-            for proxy in proxies:
-                print("setting proxy: ", proxy)
-                os.environ['http_proxy'] = "http://" + proxy.strip()
-                os.environ['https_proxy'] = "https://" + proxy.strip()
-                try:
-                    call = requests.get(endpoint, **kwargs)
-                except Exception:
-                    print(proxy, "didn't work")
-                else:
-                    return call
- 
- 
-    def requestPUTWithProxy(self, endpoint, **kwargs):
-        kwargs["timeout"]=5    
-        with open('/cloud/utils/bin/CloudBots/app/proxy.dat') as f:
-            proxies = f.readlines()
-            for proxy in proxies:
-                print("setting proxy: ", proxy)
-                os.environ['http_proxy'] = "http://" + proxy.strip()
-                os.environ['https_proxy'] = "https://" + proxy.strip()
-                try:
-                    call = requests.put(endpoint, **kwargs)
-                except Exception:
-                    print(proxy, "didn't work")
-                else:
-                    return call
+
