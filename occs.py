@@ -72,7 +72,8 @@ class OCCS:
         headers = {"Authorization" : "Bearer " + self.token}        
         print ( headers )    
         endpoint = self.url + "/api/v2/import"
-        snapshot = { 'upload.bin': ( 'upload.bin', open( snapshotName, 'rb' ) ) }        
+        snapshot = { 'upload.bin': ( 'upload.bin', open( snapshotName, 'rb' ) ) }       
+        print ( "Uploading snapshot", snapshot) 
         r = self.requestPOSTWithProxy(endpoint, files=snapshot, headers=headers, verify=False)                    
         print ( r.text )    
         return json.loads(re.sub('[\s+]', '', r.text))

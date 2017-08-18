@@ -41,6 +41,5 @@ for domain in opcc.domain_data:
 
 for container in containers:
 	url = "https://" + container["container_ip"]["ip"]	
-	api = occs.OCCS(url, identity_domain, occs_user, occs_password)
-	print ( "Uploading snapshot" )
+	api = occs.OCCS(url, identity_domain, occs_user, occs_password)	
 	print ( api.uploadSnapshot(upload_file_name) )
